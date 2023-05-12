@@ -1,0 +1,24 @@
+{
+  "development": {
+    "username": "admin",
+    "password": "sree1234",
+    "database": "sequelize_crud",
+    "host": "database-1.cjm75bryqjo1.us-east-1.rds.amazonaws.com",
+    "port":"3306",
+    "dialect": "mysql"
+  },
+  "test": {
+    "username": "root",
+    "password": "Sreechakram123@",
+    "database": "sequelize-crud",
+    "host": "localhost",
+    "dialect": "mysql"
+  },
+  "production": {
+    "username": "root",
+    "password": "Sreechakram123@",
+    "database": "sequelize-crud",
+    "host": "localhost",
+    "dialect": "mysql"
+  }
+}
