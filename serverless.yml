@@ -5,7 +5,7 @@ service: sam-sequelize-crud-serverless
 
 # You can pin your service to only deploy with a specific Serverless version
 # Check out our docs for more details
-frameworkVersion: '3'
+frameworkVersion: "3"
 
 provider:
   name: aws
@@ -14,6 +14,18 @@ provider:
   region: ${opt:region,'us-west-2'}
   memorySize: 128
   logRetentionInDays: 30 #logs will be cleared after 30 days
+  # iamRoleStatements:
+  #   - Effect: Allow
+  #     Action:
+  #       - cognito-idp:*
+  #     Resource: "*"
+  # iamRoleStatements:
+  #   - Effect: Allow
+  #     Action:
+  #       - cognito-idp:AdminInitiateAuth
+  #       - cognito-idp:AdminCreateUser
+  #       - cognito-idp:AdminSetUserPassword
+  #     Resource: "*"
   # iamRoleStatements:
   #   - Effect: "Allow"
   #     Action:
@@ -29,116 +41,254 @@ functions:
     events:
       - http: ANY /
       - http: 'ANY {proxy+}'
+    authorizer:
+      type: COGNITO_USER_POOLS
+    authorizerId:
+      Ref: us-west-2_ehdLPU7XQ
+
+
+resources:
+  Resources:
+    # ApiGatewayAuthorizer:
+    #   Type: AWS::ApiGateway::Authorizer
+    #   Properties:
+    #     Properties:
+    #       Fn::ImportValue: ${self:custom.project}-${self:custom.stage}-ApiGatewayId
+    #       Name: SamServerlessCrudApiGatewayAuthorizer
+    #       Type: COGNITO_USER_POOLS
+    #       ProviderARNs:
+    #         - arn:aws:cognito-idp:us-west-2:805045445875:userpool/us-west-2_ehdLPU7XQ
+    MyAuthorizer:
+      Type: AWS::ApiGateway::Authorizer
+      Properties:
+        RestApiId: 38hes35l77
+        Name: MyAuthorizer
+        Type: COGNITO_USER_POOLS
+        IdentitySource: method.request.header.Authorization
+        AuthorizerResultTtlInSeconds: 30
+        ProviderARNs:
+          - arn:aws:cognito-idp:us-west-2:805045445875:userpool/us-west-2_ehdLPU7XQ
+        AuthType: "cognito_user_pools"
+
+    CognitoUserPool:
+      Type: AWS::Cognito::UserPool
+      Properties:
+        UserPoolName: SamSequelizeCrudUserPool
+        Policies:
+          PasswordPolicy:
+            MinimumLength: 8
+            RequireLowercase: true
+            RequireUppercase: true
+            RequireNumbers: true
+            RequireSymbols: true
+        Schema:
+          - Name: email
+            AttributeDataType: String
+            Mutable: true
+            Required: true
+          - Name: name
+            AttributeDataType: String
+            Mutable: true
+            Required: true
+        UsernameAttributes:
+          - email
+        AutoVerifiedAttributes:
+          - email
+        EmailVerificationSubject: Verify your email for My App
+        EmailVerificationMessage: Please click the link below to verify your email address {####}
+        SmsVerificationMessage: Your verification code is {####}.
+        MfaConfiguration: OFF
+
+    CognitoUserPoolClient:
+      Type: AWS::Cognito::UserPoolClient
+      Properties:
+        UserPoolId: us-west-2_ehdLPU7XQ
+        ClientName: SamSequelizeCrudUserPoolClient
+        GenerateSecret: false
+      # Configure other properties as needed
+
+    # MyAuthorizer:
+    #   Type: AWS::ApiGateway::Authorizer
+    #   Properties:
+    #     RestApiId: 4o7fxj85wc
+    #     Name: MyAuthorizer
+    #     Type: COGNITO_USER_POOLS
+    #     ProviderARNs:
+    #       - arn:aws:cognito-idp:us-west-2:805045445875:userpool/us-west-2_ehdLPU7XQ
+
+    
+
 
 # functions:
-#   getProducts:
-#     handler: routes/productRouter.all
+#   app:
+#     handler: handler.handler
 #     events:
-#       - httpApi: 
-#           path: get/products
-#           method: get
+#       - http: ANY /
+#       - http: 'ANY {proxy+}'
+#     authorizer:
+#       type: COGNITO_USER_POOLS
+#     authorizerId:
+#       Ref: us-west-2_xy2i1fQzv
 
-#   postProduct:
-#     handler: routes/productRouter.add
-#     events:
-#       - httpApi:
-#           path: /add/product
-#           method: post
-        
-#   updateProduct:
-#     handler: routes/productRouter.update
-#       - httpApi: 
-#         path: /update/product/{id}
-#         method: post
+# resources:
+#   Resources:
+#     ApiGatewayAuthorizer:
+#       Type: AWS::ApiGateway::Authorizer
+#       Properties:
+#         Name: my-authorizer
+#         Type: COGNITO_USER_POOLS
+#         IdentitySource: method.request.header.Authorization
+#         RestApiId:
+#           Ref: ApiGatewayRestApi
+#         ProviderARNs:
+#           - arn:aws:cognito-idp:us-west-2:805045445875:userpool/us-west-2_xy2i1fQzv
+#     ApiGatewayRestApi:
+#       Type: AWS::ApiGateway::RestApi
+#       Properties:
+#         Name: my-api
 
-  # deleteProduct:
-  #   handler: routes/productRouter.delete
-  #   events:
-  #     - httpApi:
-  #         path: /delete/product/{id}
-  #         method: post
-#    The following are a few example events you can configure
-#    NOTE: Please make sure to change your handler code to work with those events
-#    Check the event documentation for details
-#    events:
-#      - httpApi:
-#          path: /users/create
-#          method: get
-#      - websocket: $connect
-#      - s3: ${env:BUCKET}
-#      - schedule: rate(10 minutes)
-#      - sns: greeter-topic
-#      - stream: arn:aws:dynamodb:region:XXXXXX:table/foo/stream/1970-01-01T00:00:00.000
-#      - alexaSkill: amzn1.ask.skill.xx-xx-xx-xx
-#      - alexaSmartHome: amzn1.ask.skill.xx-xx-xx-xx
-#      - iot:
-#          sql: "SELECT * FROM 'some_topic'"
-#      - cloudwatchEvent:
-#          event:
-#            source:
-#              - "aws.ec2"
-#            detail-type:
-#              - "EC2 Instance State-change Notification"
-#            detail:
-#              state:
-#                - pending
-#      - cloudwatchLog: '/aws/lambda/hello'
-#      - cognitoUserPool:
-#          pool: MyUserPool
-#          trigger: PreSignUp
-#      - alb:
-#          listenerArn: arn:aws:elasticloadbalancing:us-east-1:XXXXXX:listener/app/my-load-balancer/50dc6c495c0c9188/
-#          priority: 1
-#          conditions:
-#            host: example.com
-#            path: /hello
 
-#    Define function environment variables here
-#    environment:
-#      variable2: value2
-# you can add CloudFormation resource templates here
-Resources:
-  MyLambdaFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: .
-      Handler: handler.handler
-      Runtime: nodejs18.x
-      FunctionName: sam-sequelize-crud-serverless
-      MemorySize: 128
-      Timeout: 30
 
-  MyRestApi:
-    Type: AWS::ApiGateway::RestApi
-    Properties:
-      Name: sam-sequelize-crud-serverless-rest-api
-      Description: My REST API
+      # VerificationMessageTemplate:
+      #   DefaultEmailOption: CONFIRM_WITH_CODE
+      #   EmailMessage: Your verification code is {####}
+      #   EmailSubject: Verify your email for our service
 
-  MyResource:
-    Type: AWS::ApiGateway::Resource
-    Properties:
-      ParentId: !GetAtt MyRestApi.RootResourceId
-      PathPart: my-resource
+          # DB_HOST: my-rds-hostname
+          # DB_PORT: 5432
+          # DB_NAME: my-database-name
+          # DB_USERNAME: my-database-username
+          # DB_PASSWORD: my-database-password
 
-  MyGetMethod:
-    Type: AWS::ApiGateway::Method
-    Properties:
-      RestApiId: !Ref MyRestApi
-      ResourceId: !Ref MyResource
-      HttpMethod: GET
-      AuthorizationType: NONE
-      Integration:
-        IntegrationHttpMethod: POST
-        Type: AWS_PROXY
-        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${MyLambdaFunction.Arn}/invocations
+    
 
-  MyDeployment:
-    Type: AWS::ApiGateway::Deployment
-    DependsOn: [MyGetMethod]
-    Properties:
-      RestApiId: !Ref MyRestApi
-      StageName: dev
 
+
+
+
+
+     
+
+
+
+# Resources:
+#   CognitoUserPool:
+#     Type: AWS::Cognito::UserPool
+#     Properties: 
+#       UserPoolName: SamSequelizeCrudUserPool-${self:provider.stage}
+#       UserNameAttributes: 
+#         - email
+  
+#   CognitoUserPoolClient:
+#     Type: AWS::Cognito::UserPoolClient
+#     Properties:
+#       UserPoolId: !Ref CognitoUserPool
+#       ClientName: SamSequelizeCrudUserPoolClient-${self:provider.stage}
+#       AllowedOAuthFlowsUserPoolClient: True
+#       AllowedOAuthScopes:
+#         - email 
+#         - profile
+#         - openid
+#       SupportedIdentityProviders:
+#         - COGNITO
+#       AllowedOAuthFlows:
+#         - implicit
+#       CallbackURLS:
+#         - https://jjlqnydai6.execute-api.us-west-2.amazonaws.com/dev
+#       DefaultRedirectURI: https://jjlqnydai6.execute-api.us-west-2.amazonaws.com/dev
+
+#   CognitoUserPoolDomain:
+#       Type: AWS::Cognito::UserPoolDomain
+#       Properties:
+#         Domain: SamSequelizeCrudUserPoolDomain-${self:provider.stage}
+#         UserPoolId: !Ref CognitoUserPool
+
+#   plugins: 
+#     - serverless-iam-roles-per-function
+# # custom:
+# #   COGNITO_USER_POOL_ID: !Ref CognitoUserPool
+# #   COGNITO_USER_POOL_CLIENT: !Ref CognitoUserPoolClient
+
+#   MyLambdaFunction:
+#     Type: AWS::Serverless::Function
+#     Properties:
+#       CodeUri: .
+#       Handler: handler.handler
+#       Runtime: nodejs18.x
+#       FunctionName: sam-sequelize-crud-serverless
+#       MemorySize: 128
+#       Timeout: 30
+
+#   MyRestApi:
+#     Type: AWS::ApiGateway::RestApi
+#     Properties:
+#       Name: sam-sequelize-crud-serverless-rest-api
+#       Description: My REST API
+
+#   MyResource:
+#     Type: AWS::ApiGateway::Resource
+#     Properties:
+#       ParentId: !GetAtt MyRestApi.RootResourceId
+#       PathPart: my-resource
+
+#   MyGetMethod:
+#     Type: AWS::ApiGateway::Method
+#     Properties:
+#       RestApiId: !Ref MyRestApi
+#       ResourceId: !Ref MyResource
+#       HttpMethod: GET
+#       AuthorizationType: NONE
+#       Integration:
+#         IntegrationHttpMethod: POST
+#         Type: AWS_PROXY
+#         Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${MyLambdaFunction.Arn}/invocations
+
+#   MyDeployment:
+#     Type: AWS::ApiGateway::Deployment
+#     DependsOn: [MyGetMethod]
+#     Properties:
+#       RestApiId: !Ref MyRestApi
+#       StageName: dev
+
+
+      
+
+
+    
+
+  # CognitoUserPool:
+  #   Type: "AWS::Cognito::UserPool"
+  #   Properties:
+  #     MfaConfiguration: OFF
+  #     UserPoolName: aws-cognito-user-pool
+  #     UsernameAttributes:
+  #       - email
+  #     Policies:
+  #       PasswordPolicy:
+  #       MinimumLength: 8
+  #       RequireLowercase: False
+  #       RequireNumbers: True
+  #       RequireSymbols: False
+  #       RequireUppercase: True
+  # CognitoUserPoolClient:
+  #   Type: "AWS::Cognito::UserPoolClient"
+  #   Properties:
+  #     ClientName: aws-cognito-user-pool-client
+  #     GenerateSecret: False
+  #     UserPoolId:
+  #       Ref: CognitoUserPool
+  # ApiGatewayAuthorizer:
+  #   DependsOn:
+  #     - ApiGatewayRestApi
+  #   Type: AWS::ApiGateway::Authorizer
+  #   Properties:
+  #     Name: cognito-authorizer
+  #     IdentitySource: method.request.header.Authorization
+  #     RestApiId:
+  #       Ref: ApiGatewayRestApi
+  #     Type: COGNITO_USER_POOLS
+  #     ProviderARNs:
+  #       - Fn::GetAtt: [CognitoUserPool, Arn]
 #resources:
 #  Resources:
 #    NewResource:
